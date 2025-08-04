@@ -834,11 +834,8 @@ local function objectEspUpdate()
     end
 end
 
-RunService.RenderStepped:Connect(objectEspUpdate)
-
 local RunService = game:GetService("RunService")
-local origHandProps = {}
-local origItemProps = {}
+local origHandProps, origItemProps = {}, {}
 
 local function applyHighlight(part, color)
     for _, v in ipairs(part:GetChildren()) do
@@ -860,10 +857,11 @@ local function removeHighlights(part)
     end
 end
 
-local function setHandPartChams(part, id)
+local function setHandChams(part)
+    local id = part:GetDebugId()
     if chamsSettings.hand then
         if not origHandProps[id] then
-            origHandProps[id] = {material=part.Material, color=part.Color}
+            origHandProps[id] = {material = part.Material, color = part.Color}
         end
         removeHighlights(part)
         if chamsSettings.handMat == "Chams" then
@@ -882,71 +880,65 @@ local function setHandPartChams(part, id)
     end
 end
 
-local function applyHandChams()
+local function updateHandChams()
     local ignore = workspace:FindFirstChild("Const")
     ignore = ignore and ignore:FindFirstChild("Ignore")
     local fpsarms = ignore and ignore:FindFirstChild("FPSArms")
     if not fpsarms then return end
 
+    -- LeftHand, RightHand
     for _, name in ipairs({"LeftHand", "RightHand"}) do
         local hand = fpsarms:FindFirstChild(name)
         if hand and hand:IsA("BasePart") then
-            setHandPartChams(hand, hand:GetDebugId())
+            setHandChams(hand)
         end
     end
 
+    -- Fake arms
     local fake = fpsarms:FindFirstChild("Fake")
     if fake then
         for _, name in ipairs({"c_LeftLowerArm", "c_RightLowerArm"}) do
             local limb = fake:FindFirstChild(name)
             if limb and limb:IsA("BasePart") then
-                setHandPartChams(limb, limb:GetDebugId())
-            end
-        end
-    end
-
-    local handModel = fpsarms:FindFirstChild("HandModel")
-    if handModel then
-        for _, part in ipairs(handModel:GetChildren()) do
-            if part:IsA("BasePart") then
-                setHandPartChams(part, part:GetDebugId())
+                setHandChams(limb)
             end
         end
     end
 end
 
-local function setItemPartChams(obj, id)
+local function setItemChams(part)
+    local id = part:GetDebugId()
     if chamsSettings.item then
         if not origItemProps[id] then
-            origItemProps[id] = {material=obj.Material, color=obj.Color}
+            origItemProps[id] = {material = part.Material, color = part.Color}
         end
-        removeHighlights(obj)
+        removeHighlights(part)
         if chamsSettings.itemMat == "Chams" then
-            applyHighlight(obj, chamsSettings.itemColor)
+            applyHighlight(part, chamsSettings.itemColor)
         else
-            obj.Material = Enum.Material[chamsSettings.itemMat]
-            obj.Color = chamsSettings.itemColor
+            part.Material = Enum.Material[chamsSettings.itemMat]
+            part.Color = chamsSettings.itemColor
         end
     else
         if origItemProps[id] then
-            obj.Material = origItemProps[id].material
-            obj.Color = origItemProps[id].color
+            part.Material = origItemProps[id].material
+            part.Color = origItemProps[id].color
             origItemProps[id] = nil
         end
-        removeHighlights(obj)
+        removeHighlights(part)
     end
 end
 
 local function recurseItemChams(obj)
     if obj:IsA("BasePart") or obj:IsA("MeshPart") then
-        setItemPartChams(obj, obj:GetDebugId())
+        setItemChams(obj)
     end
     for _, child in ipairs(obj:GetChildren()) do
         recurseItemChams(child)
     end
 end
 
-local function applyItemChams()
+local function updateItemChams()
     local ignore = workspace:FindFirstChild("Const")
     ignore = ignore and ignore:FindFirstChild("Ignore")
     if not ignore then return end
@@ -955,7 +947,7 @@ local function applyItemChams()
             recurseItemChams(obj)
         end
     end
-    -- FPSArms HandModel тоже
+    -- HandModel внутри FPSArms (оружие) тоже через ItemChams
     local fpsarms = ignore:FindFirstChild("FPSArms")
     if fpsarms then
         local handModel = fpsarms:FindFirstChild("HandModel")
@@ -966,8 +958,8 @@ local function applyItemChams()
 end
 
 RunService.RenderStepped:Connect(function()
-    if chamsSettings.hand then applyHandChams() end
-    if chamsSettings.item then applyItemChams() end
+    updateHandChams()
+    updateItemChams()
 end)
 
 getgenv().TridentLibrary:OnUnload(function()
