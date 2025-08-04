@@ -838,6 +838,7 @@ local RunService = game:GetService("RunService")
 local origHandProps, origItemProps = {}, {}
 
 local function applyHighlight(part, color)
+    -- Всегда удаляем старые highlights
     for _, v in ipairs(part:GetChildren()) do
         if v:IsA("Highlight") then v:Destroy() end
     end
@@ -848,7 +849,6 @@ local function applyHighlight(part, color)
     highlight.OutlineColor = color
     highlight.OutlineTransparency = 0
     highlight.Parent = part
-    return highlight
 end
 
 local function removeHighlights(part)
@@ -859,24 +859,40 @@ end
 
 local function setHandChams(part)
     local id = part:GetDebugId()
+    -- Сохраняем оригинальные свойства только один раз
+    if not origHandProps[id] then
+        origHandProps[id] = {material = part.Material, color = part.Color}
+    end
+    -- Сброс к оригиналу перед применением нового материала
+    part.Material = origHandProps[id].material
+    part.Color = origHandProps[id].color
+    removeHighlights(part)
     if chamsSettings.hand then
-        if not origHandProps[id] then
-            origHandProps[id] = {material = part.Material, color = part.Color}
-        end
-        removeHighlights(part)
         if chamsSettings.handMat == "Chams" then
             applyHighlight(part, chamsSettings.handColor)
         else
             part.Material = Enum.Material[chamsSettings.handMat]
             part.Color = chamsSettings.handColor
         end
-    else
-        if origHandProps[id] then
-            part.Material = origHandProps[id].material
-            part.Color = origHandProps[id].color
-            origHandProps[id] = nil
+    end
+end
+
+local function setItemChams(part)
+    local id = part:GetDebugId()
+    if not origItemProps[id] then
+        origItemProps[id] = {material = part.Material, color = part.Color}
+    end
+    -- Сброс к оригиналу перед применением нового материала
+    part.Material = origItemProps[id].material
+    part.Color = origItemProps[id].color
+    removeHighlights(part)
+    if chamsSettings.item then
+        if chamsSettings.itemMat == "Chams" then
+            applyHighlight(part, chamsSettings.itemColor)
+        else
+            part.Material = Enum.Material[chamsSettings.itemMat]
+            part.Color = chamsSettings.itemColor
         end
-        removeHighlights(part)
     end
 end
 
@@ -886,7 +902,6 @@ local function updateHandChams()
     local fpsarms = ignore and ignore:FindFirstChild("FPSArms")
     if not fpsarms then return end
 
-    -- LeftHand, RightHand
     for _, name in ipairs({"LeftHand", "RightHand"}) do
         local hand = fpsarms:FindFirstChild(name)
         if hand and hand:IsA("BasePart") then
@@ -894,7 +909,6 @@ local function updateHandChams()
         end
     end
 
-    -- Fake arms
     local fake = fpsarms:FindFirstChild("Fake")
     if fake then
         for _, name in ipairs({"c_LeftLowerArm", "c_RightLowerArm"}) do
@@ -903,29 +917,6 @@ local function updateHandChams()
                 setHandChams(limb)
             end
         end
-    end
-end
-
-local function setItemChams(part)
-    local id = part:GetDebugId()
-    if chamsSettings.item then
-        if not origItemProps[id] then
-            origItemProps[id] = {material = part.Material, color = part.Color}
-        end
-        removeHighlights(part)
-        if chamsSettings.itemMat == "Chams" then
-            applyHighlight(part, chamsSettings.itemColor)
-        else
-            part.Material = Enum.Material[chamsSettings.itemMat]
-            part.Color = chamsSettings.itemColor
-        end
-    else
-        if origItemProps[id] then
-            part.Material = origItemProps[id].material
-            part.Color = origItemProps[id].color
-            origItemProps[id] = nil
-        end
-        removeHighlights(part)
     end
 end
 
@@ -947,7 +938,6 @@ local function updateItemChams()
             recurseItemChams(obj)
         end
     end
-    -- HandModel внутри FPSArms (оружие) тоже через ItemChams
     local fpsarms = ignore:FindFirstChild("FPSArms")
     if fpsarms then
         local handModel = fpsarms:FindFirstChild("HandModel")
@@ -963,12 +953,8 @@ RunService.RenderStepped:Connect(function()
 end)
 
 getgenv().TridentLibrary:OnUnload(function()
-    for id, props in pairs(origHandProps) do
-        origHandProps[id] = nil
-    end
-    for id, props in pairs(origItemProps) do
-        origItemProps[id] = nil
-    end
+    for id, _ in pairs(origHandProps) do origHandProps[id] = nil end
+    for id, _ in pairs(origItemProps) do origItemProps[id] = nil end
 end)
 ------------------------------------------------------------
 -- BULLET TRACE через Beam (tail fade-out без кусков, плавно, Neon/Lazer, фикс лимита кейпоинтов)
