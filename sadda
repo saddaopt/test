@@ -836,7 +836,6 @@ end
 
 RunService.RenderStepped:Connect(objectEspUpdate)
 
--- === CHAMS (Руки и предметы, как в visual(3), но оптимизированный) ===
 local RunService = game:GetService("RunService")
 local origHandProps = {}
 local origItemProps = {}
@@ -861,96 +860,89 @@ local function removeHighlights(part)
     end
 end
 
+local function setHandPartChams(part, id)
+    if chamsSettings.hand then
+        if not origHandProps[id] then
+            origHandProps[id] = {material=part.Material, color=part.Color}
+        end
+        removeHighlights(part)
+        if chamsSettings.handMat == "Chams" then
+            applyHighlight(part, chamsSettings.handColor)
+        else
+            part.Material = Enum.Material[chamsSettings.handMat]
+            part.Color = chamsSettings.handColor
+        end
+    else
+        if origHandProps[id] then
+            part.Material = origHandProps[id].material
+            part.Color = origHandProps[id].color
+            origHandProps[id] = nil
+        end
+        removeHighlights(part)
+    end
+end
+
 local function applyHandChams()
     local ignore = workspace:FindFirstChild("Const")
     ignore = ignore and ignore:FindFirstChild("Ignore")
     local fpsarms = ignore and ignore:FindFirstChild("FPSArms")
     if not fpsarms then return end
 
-    -- Main hands
     for _, name in ipairs({"LeftHand", "RightHand"}) do
         local hand = fpsarms:FindFirstChild(name)
-        if hand and hand:IsA("MeshPart") then
-            local id = hand:GetDebugId()
-            if chamsSettings.hand then
-                if not origHandProps[id] then
-                    origHandProps[id] = {material=hand.Material, color=hand.Color}
-                end
-                removeHighlights(hand)
-                if chamsSettings.handMat == "Chams" then
-                    applyHighlight(hand, chamsSettings.handColor)
-                else
-                    hand.Material = Enum.Material[chamsSettings.handMat]
-                    hand.Color = chamsSettings.handColor
-                end
-            else
-                if origHandProps[id] then
-                    hand.Material = origHandProps[id].material
-                    hand.Color = origHandProps[id].color
-                    origHandProps[id] = nil
-                end
-                removeHighlights(hand)
-            end
+        if hand and hand:IsA("BasePart") then
+            setHandPartChams(hand, hand:GetDebugId())
         end
     end
 
-    -- Fake arms
     local fake = fpsarms:FindFirstChild("Fake")
     if fake then
         for _, name in ipairs({"c_LeftLowerArm", "c_RightLowerArm"}) do
             local limb = fake:FindFirstChild(name)
-            if limb and limb:IsA("MeshPart") then
-                local id = limb:GetDebugId()
-                if chamsSettings.hand then
-                    if not origHandProps[id] then
-                        origHandProps[id] = {material=limb.Material, color=limb.Color}
-                    end
-                    removeHighlights(limb)
-                    if chamsSettings.handMat == "Chams" then
-                        applyHighlight(limb, chamsSettings.handColor)
-                    else
-                        limb.Material = Enum.Material[chamsSettings.handMat]
-                        limb.Color = chamsSettings.handColor
-                    end
-                else
-                    if origHandProps[id] then
-                        limb.Material = origHandProps[id].material
-                        limb.Color = origHandProps[id].color
-                        origHandProps[id] = nil
-                    end
-                    removeHighlights(limb)
-                end
+            if limb and limb:IsA("BasePart") then
+                setHandPartChams(limb, limb:GetDebugId())
             end
         end
     end
 
-    -- HandModel (старый стиль, если нужен)
     local handModel = fpsarms:FindFirstChild("HandModel")
     if handModel then
         for _, part in ipairs(handModel:GetChildren()) do
             if part:IsA("BasePart") then
-                local id = part:GetDebugId()
-                if chamsSettings.hand then
-                    if not origHandProps[id] then
-                        origHandProps[id] = {material=part.Material, color=part.Color}
-                    end
-                    removeHighlights(part)
-                    if chamsSettings.handMat == "Chams" then
-                        applyHighlight(part, chamsSettings.handColor)
-                    else
-                        part.Material = Enum.Material[chamsSettings.handMat]
-                        part.Color = chamsSettings.handColor
-                    end
-                else
-                    if origHandProps[id] then
-                        part.Material = origHandProps[id].material
-                        part.Color = origHandProps[id].color
-                        origHandProps[id] = nil
-                    end
-                    removeHighlights(part)
-                end
+                setHandPartChams(part, part:GetDebugId())
             end
         end
+    end
+end
+
+local function setItemPartChams(obj, id)
+    if chamsSettings.item then
+        if not origItemProps[id] then
+            origItemProps[id] = {material=obj.Material, color=obj.Color}
+        end
+        removeHighlights(obj)
+        if chamsSettings.itemMat == "Chams" then
+            applyHighlight(obj, chamsSettings.itemColor)
+        else
+            obj.Material = Enum.Material[chamsSettings.itemMat]
+            obj.Color = chamsSettings.itemColor
+        end
+    else
+        if origItemProps[id] then
+            obj.Material = origItemProps[id].material
+            obj.Color = origItemProps[id].color
+            origItemProps[id] = nil
+        end
+        removeHighlights(obj)
+    end
+end
+
+local function recurseItemChams(obj)
+    if obj:IsA("BasePart") or obj:IsA("MeshPart") then
+        setItemPartChams(obj, obj:GetDebugId())
+    end
+    for _, child in ipairs(obj:GetChildren()) do
+        recurseItemChams(child)
     end
 end
 
@@ -959,27 +951,16 @@ local function applyItemChams()
     ignore = ignore and ignore:FindFirstChild("Ignore")
     if not ignore then return end
     for _, obj in ipairs(ignore:GetChildren()) do
-        if obj:IsA("BasePart") or obj:IsA("MeshPart") then
-            local id = obj:GetDebugId()
-            if chamsSettings.item then
-                if not origItemProps[id] then
-                    origItemProps[id] = {material=obj.Material, color=obj.Color}
-                end
-                removeHighlights(obj)
-                if chamsSettings.itemMat == "Chams" then
-                    applyHighlight(obj, chamsSettings.itemColor)
-                else
-                    obj.Material = Enum.Material[chamsSettings.itemMat]
-                    obj.Color = chamsSettings.itemColor
-                end
-            else
-                if origItemProps[id] then
-                    obj.Material = origItemProps[id].material
-                    obj.Color = origItemProps[id].color
-                    origItemProps[id] = nil
-                end
-                removeHighlights(obj)
-            end
+        if obj.Name ~= "FPSArms" and obj.Name ~= "LocalCharacter" then
+            recurseItemChams(obj)
+        end
+    end
+    -- FPSArms HandModel тоже
+    local fpsarms = ignore:FindFirstChild("FPSArms")
+    if fpsarms then
+        local handModel = fpsarms:FindFirstChild("HandModel")
+        if handModel then
+            recurseItemChams(handModel)
         end
     end
 end
@@ -990,7 +971,6 @@ RunService.RenderStepped:Connect(function()
 end)
 
 getgenv().TridentLibrary:OnUnload(function()
-    -- Hand chams cleanup
     for id, props in pairs(origHandProps) do
         origHandProps[id] = nil
     end
@@ -998,7 +978,6 @@ getgenv().TridentLibrary:OnUnload(function()
         origItemProps[id] = nil
     end
 end)
-
 ------------------------------------------------------------
 -- BULLET TRACE через Beam (tail fade-out без кусков, плавно, Neon/Lazer, фикс лимита кейпоинтов)
 ------------------------------------------------------------
